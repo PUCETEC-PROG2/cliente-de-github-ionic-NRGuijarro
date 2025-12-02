@@ -1,0 +1,15 @@
+/* Centrado vertical y espaciado entre campos */
+.form-container {
+	min-height: 100%;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	align-items: center;
+	gap: 16px; /* Espaciado entre ion-input y textarea */
+	padding: 16px; /* Margen interior del contenedor */
+}
+
+.form-field {
+	width: 100%;
+	max-width: 640px; /* Limita el ancho para mejor lectura */
+}
