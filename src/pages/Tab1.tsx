@@ -2,8 +2,39 @@ import { IonContent, IonHeader, IonPage, IonTitle, IonToolbar } from '@ionic/rea
 import { IonList } from '@ionic/react';
 import './Tab1.css';
 import RepoItem from '../components/RepoItem';
+import { useEffect, useState } from 'react';
+import { getUserRepos } from '../services/github';
 
 const Tab1: React.FC = () => {
+  const [repos, setRepos] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const onCreated = () => {
+      fetchRepos();
+    };
+    window.addEventListener('repoCreated', onCreated as EventListener);
+    return () => window.removeEventListener('repoCreated', onCreated as EventListener);
+  }, []);
+
+  async function fetchRepos() {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await getUserRepos();
+      setRepos(data);
+    } catch (e: any) {
+      setError(e?.message || 'Error al obtener repositorios');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    fetchRepos();
+  }, []);
+
   return (
     <IonPage>
       <IonHeader>
@@ -17,10 +48,15 @@ const Tab1: React.FC = () => {
             <IonTitle size="large">Repositorios</IonTitle>
           </IonToolbar>
         </IonHeader>
+        {loading && <div className="loading">Cargando repositorios...</div>}
+        {error && <div className="error">{error}</div>}
         <IonList>
-          <RepoItem name="Repositorio 1" imageUrl="https://static.thenounproject.com/png/55430-200.png" />
-          <RepoItem name="Repositorio 2" />
-          <RepoItem name="Repositorio 3" imageUrl="https://static.thenounproject.com/png/390267-200.png" />
+          {!loading && !error && repos.length === 0 && (
+            <div className="empty">No hay repositorios.</div>
+          )}
+          {repos.map((r) => (
+            <RepoItem key={r.id} name={r.name} imageUrl={r.owner?.avatar_url} />
+          ))}
         </IonList>
       </IonContent>
     </IonPage>

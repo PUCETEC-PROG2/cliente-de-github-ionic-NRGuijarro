@@ -1,8 +1,39 @@
 import { IonButton, IonContent, IonHeader, IonPage, IonTextarea, IonTitle, IonToolbar } from '@ionic/react';
 import { IonInput } from '@ionic/react';
 import './Tab2.css';
+import { useState } from 'react';
+import { createRepo } from '../services/github';
 
 const Tab2: React.FC = () => {
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  const handleSubmit = async () => {
+    setError(null);
+    setSuccess(null);
+    if (!name || name.trim().length === 0) {
+      setError('El nombre es obligatorio');
+      return;
+    }
+    setLoading(true);
+    try {
+      await createRepo({ name: name.trim(), description: description.trim() });
+      setSuccess('Repositorio creado exitosamente');
+      setName('');
+      setDescription('');
+      // Emit event to notify repo list to refresh
+      try { window.dispatchEvent(new CustomEvent('repoCreated')); } catch (e) { /* noop */ }
+      // Optionally you could emit an event or use a global state to refresh repos list
+    } catch (e: any) {
+      setError(e?.response?.data?.message || e?.message || 'Error al crear repositorio');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <IonPage>
       <IonHeader>
@@ -18,6 +49,8 @@ const Tab2: React.FC = () => {
         </IonHeader>
         <div className="form-container">
           <IonInput
+            value={name}
+            onIonChange={(e: any) => setName(e.detail.value)}
             className="form-field"
             label="Nombre del repositorio"
             labelPlacement="floating"
@@ -25,6 +58,8 @@ const Tab2: React.FC = () => {
             placeholder="android-project"
           ></IonInput>
           <IonTextarea
+            value={description}
+            onIonChange={(e: any) => setDescription(e.detail.value)}
             className="form-field"
             label="Descripción del repositorio"
             labelPlacement="floating"
@@ -33,7 +68,10 @@ const Tab2: React.FC = () => {
             rows={6}
             autoGrow
           ></IonTextarea>
-          <IonButton expand="block" className="form-field">Guardar</IonButton>
+          {loading && <div className="loading">Creando repositorio...</div>}
+          {error && <div className="error">{error}</div>}
+          {success && <div className="success">{success}</div>}
+          <IonButton expand="block" className="form-field" onClick={handleSubmit} disabled={loading}>Guardar</IonButton>
         </div>
       </IonContent>
     </IonPage>

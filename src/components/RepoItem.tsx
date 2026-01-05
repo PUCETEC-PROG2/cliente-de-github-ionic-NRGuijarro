@@ -14,10 +14,17 @@ interface RepoProps {
 const RepoItem: React.FC<RepoProps> = ({ name, imageUrl }) => {
   return (
     <IonItem>
+      {imageUrl && (
         <IonThumbnail slot="start">
-            <img alt="Silhouette of mountains" src={imageUrl || "https://ionicframework.com/docs/img/demos/thumbnail.svg"} />
+          <img alt="Avatar" src={imageUrl} />
         </IonThumbnail>
-        <IonLabel>{name}</IonLabel>
+      )}
+      {!imageUrl && (
+        <IonThumbnail slot="start">
+          <img alt="Silhouette of mountains" src={"https://ionicframework.com/docs/img/demos/thumbnail.svg"} />
+        </IonThumbnail>
+      )}
+      <IonLabel>{name}</IonLabel>
     </IonItem>
   );
 };
