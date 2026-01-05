@@ -2,7 +2,8 @@ import { IonButton, IonContent, IonHeader, IonPage, IonTextarea, IonTitle, IonTo
 import { IonInput } from '@ionic/react';
 import './Tab2.css';
 import { useState } from 'react';
-import { createRepo } from '../services/github';
+import { createRepo, getUserRepos } from '../services/github';
+import { useHistory } from 'react-router-dom';
 
 const Tab2: React.FC = () => {
   const [name, setName] = useState('');
@@ -10,6 +11,7 @@ const Tab2: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const history = useHistory();
 
   const handleSubmit = async () => {
     setError(null);
@@ -20,13 +22,23 @@ const Tab2: React.FC = () => {
     }
     setLoading(true);
     try {
-      await createRepo({ name: name.trim(), description: description.trim() });
+      const created = await createRepo({ name: name.trim(), description: description.trim() || undefined });
+      console.log('Repo creado:', created);
       setSuccess('Repositorio creado exitosamente');
       setName('');
       setDescription('');
-      // Emit event to notify repo list to refresh
-      try { window.dispatchEvent(new CustomEvent('repoCreated')); } catch (e) { /* noop */ }
-      // Optionally you could emit an event or use a global state to refresh repos list
+      // Emit event with created repo to notify repo list to refresh / prepend
+      try { window.dispatchEvent(new CustomEvent('repoCreated', { detail: created })); } catch (e) { /* noop */ }
+      // Also fetch fresh list and send full list for reliability
+      try {
+        const list = await getUserRepos();
+        try { window.dispatchEvent(new CustomEvent('reposUpdated', { detail: list })); } catch (e) { }
+        try { sessionStorage.setItem('reposUpdated', '1'); } catch (e) { }
+      } catch (e) {
+        // ignore fetch list error, UI will still get created item
+      }
+      // Navegar de regreso a la lista de repos después de un pequeño delay
+      setTimeout(() => history.push('/tab1'), 400);
     } catch (e: any) {
       setError(e?.response?.data?.message || e?.message || 'Error al crear repositorio');
     } finally {
