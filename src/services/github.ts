@@ -10,13 +10,20 @@ const api = axios.create({
   }
 });
 
+// Agregar interceptor para deshabilitar el caché ETag de GitHub
+api.interceptors.request.use((config) => {
+  // Forzar a GitHub a devolver datos frescos eliminando el header If-None-Match
+  config.headers['If-None-Match'] = '';
+  return config;
+});
+
 export async function getUser() {
   const res = await api.get('/user');
   return res.data;
 }
 
 export async function getUserRepos() {
-  // Request more results and show newest first so repos created from the app appear immediately
+  // Solicitar más resultados y mostrar los más nuevos primero para que los repos creados desde la app aparezcan inmediatamente
   const res = await api.get('/user/repos', {
     params: {
       sort: 'created',

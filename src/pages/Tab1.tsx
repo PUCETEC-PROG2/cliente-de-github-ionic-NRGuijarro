@@ -1,7 +1,6 @@
-import { IonContent, IonHeader, IonPage, IonTitle, IonToolbar, isPlatform } from '@ionic/react';
+import { IonContent, IonHeader, IonPage, IonTitle, IonToolbar, isPlatform, useIonViewWillEnter } from '@ionic/react';
 import { IonList } from '@ionic/react';
 import './Tab1.css';
-import RepoItem from '../components/RepoItem';
 import { useEffect, useState, useRef } from 'react';
 import { getUserRepos, updateRepo, deleteRepo } from '../services/github';
 import { useHistory } from 'react-router-dom';
@@ -18,31 +17,44 @@ import {
 import { refresh as refreshIcon } from 'ionicons/icons';
 
 const Tab1: React.FC = () => {
-  const [repos, setRepos] = useState<any[]>([]);
+  interface Repo {
+    id: number;
+    name: string;
+    description: string | null;
+    owner: {
+      login: string;
+      avatar_url: string;
+    };
+  }
+  const [repos, setRepos] = useState<Repo[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
-  const [selectedRepo, setSelectedRepo] = useState<any | null>(null);
+  const [selectedRepo, setSelectedRepo] = useState<Repo | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const touchStartX = useRef<number | null>(null);
   const history = useHistory();
+  const needsRefresh = useRef(false);
+
+  // Refrescar automáticamente cuando se regresa a esta pestaña
+  useIonViewWillEnter(() => {
+    if (needsRefresh.current) {
+      fetchRepos();
+      needsRefresh.current = false;
+    }
+  });
 
   useEffect(() => {
-    const onCreated = (ev: Event | any) => {
-      const created = ev?.detail;
-      if (created && created.id) {
-        // prepend for instant visibility
-        setRepos((prev) => [created, ...prev]);
-      } else {
-        fetchRepos();
-      }
+    const onCreated = () => {
+      // Marcar que necesitamos refrescar la próxima vez que entremos a la vista
+      needsRefresh.current = true;
+      // También hacer fetch inmediato para actualización instantánea
+      fetchRepos();
     };
-    const onUpdated = (ev: Event | any) => {
-      const list = ev?.detail;
-      if (Array.isArray(list)) {
-        setRepos(list);
-      }
+    const onUpdated = () => {
+      // Forzar recarga desde el servidor
+      fetchRepos();
     };
 
     window.addEventListener('repoCreated', onCreated as EventListener);
@@ -57,10 +69,13 @@ const Tab1: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
+      // Agregar un pequeño delay para asegurar que GitHub haya sincronizado los cambios
+      await new Promise(resolve => setTimeout(resolve, 500));
       const data = await getUserRepos();
       setRepos(data);
-    } catch (e: any) {
-      setError(e?.message || 'Error al obtener repositorios');
+    } catch (e: unknown) {
+      const error = e instanceof Error ? e : new Error(String(e));
+      setError(error.message || 'Error al obtener repositorios');
     } finally {
       setLoading(false);
     }
@@ -70,7 +85,7 @@ const Tab1: React.FC = () => {
     fetchRepos();
   }, []);
 
-  function onRequestDelete(repo: any) {
+  function onRequestDelete(repo: Repo) {
     setSelectedRepo(repo);
     setConfirmOpen(true);
   }
@@ -83,35 +98,71 @@ const Tab1: React.FC = () => {
       await deleteRepo(owner, name);
       setToastMsg('Repositorio eliminado correctamente');
       await fetchRepos();
-    } catch (e: any) {
-      setToastMsg(e?.response?.data?.message || e?.message || 'Error al eliminar repositorio');
+    } catch (e: unknown) {
+      const error = e instanceof Error ? e : new Error(String(e));
+      setToastMsg(error.message || 'Error al eliminar repositorio');
     } finally {
       setConfirmOpen(false);
       setSelectedRepo(null);
     }
   }
 
-  function onRequestEdit(repo: any) {
+  function onRequestEdit(repo: Repo) {
     setSelectedRepo(repo);
     setEditOpen(true);
   }
 
-  async function confirmEdit(values: any) {
+  async function confirmEdit(values: { name: string; description: string }) {
     if (!selectedRepo) return;
-    try {
-      const owner = selectedRepo.owner?.login;
-      const repoName = selectedRepo.name;
-      const payload: any = {};
-      if (values.name && values.name.trim().length > 0) payload.name = values.name.trim();
-      if (values.description !== undefined) payload.description = values.description;
-      await updateRepo(owner, repoName, payload);
-      setToastMsg('Repositorio actualizado correctamente');
-      await fetchRepos();
-    } catch (e: any) {
-      setToastMsg(e?.response?.data?.message || e?.message || 'Error al actualizar repositorio');
-    } finally {
+    
+    // Guardar los datos antes de limpiar el estado
+    const owner = selectedRepo.owner?.login;
+    const repoName = selectedRepo.name;
+    const oldRepo = selectedRepo;
+    
+    // Verificar si realmente hay cambios
+    const nameChanged = values.name && values.name.trim() !== oldRepo.name;
+    const descriptionChanged = values.description !== (oldRepo.description || '');
+    
+    if (!nameChanged && !descriptionChanged) {
       setEditOpen(false);
       setSelectedRepo(null);
+      setToastMsg('No existen cambios a guardar');
+      return;
+    }
+    
+    // Cerrar el diálogo inmediatamente
+    setEditOpen(false);
+    setSelectedRepo(null);
+    
+    try {
+      const payload: { name?: string; description?: string } = {};
+      if (values.name && values.name.trim().length > 0) payload.name = values.name.trim();
+      if (values.description !== undefined) payload.description = values.description;
+      
+      await updateRepo(owner, repoName, payload);
+      console.log('Repo actualizado:', payload);
+      
+      // Actualizar el estado local inmediatamente con los nuevos valores
+      setRepos(prevRepos => 
+        prevRepos.map(repo => {
+          if (repo.id === oldRepo.id) {
+            return {
+              ...repo,
+              name: values.name && values.name.trim().length > 0 ? values.name.trim() : repo.name,
+              description: values.description !== undefined ? values.description : repo.description
+            };
+          }
+          return repo;
+        })
+      );
+      
+      setToastMsg('Repositorio actualizado correctamente');
+    } catch (e: unknown) {
+      const error = e instanceof Error ? e : new Error(String(e));
+      setToastMsg(error.message || 'Error al actualizar repositorio');
+      // Refrescar en caso de error para asegurar que tenemos los datos más recientes
+      await fetchRepos();
     }
   }
 
@@ -129,17 +180,19 @@ const Tab1: React.FC = () => {
       </IonHeader>
       <IonContent
         fullscreen
-        onTouchStart={(e: any) => {
+        onTouchStart={(e) => {
           if (!isPlatform('android')) return;
-          touchStartX.current = e.touches && e.touches[0] ? e.touches[0].clientX : null;
+          const touchEvent = e as React.TouchEvent<HTMLIonContentElement>;
+          touchStartX.current = touchEvent.touches && touchEvent.touches[0] ? touchEvent.touches[0].clientX : null;
         }}
-        onTouchEnd={(e: any) => {
+        onTouchEnd={(e) => {
           if (!isPlatform('android')) return;
+          const touchEvent = e as React.TouchEvent<HTMLIonContentElement>;
           if (touchStartX.current === null) return;
-          const endX = e.changedTouches && e.changedTouches[0] ? e.changedTouches[0].clientX : null;
+          const endX = touchEvent.changedTouches && touchEvent.changedTouches[0] ? touchEvent.changedTouches[0].clientX : null;
           if (endX === null) return;
           const delta = endX - touchStartX.current;
-          // swipe left -> go to crear repo
+          // deslizar a la izquierda -> ir a crear repo
           if (delta < -50) {
             history.push('/tab2');
           }
@@ -179,7 +232,7 @@ const Tab1: React.FC = () => {
           isOpen={confirmOpen}
           onDidDismiss={() => setConfirmOpen(false)}
           header={'Eliminar repositorio'}
-          message={`¿Estás seguro que deseas eliminar <strong>${selectedRepo?.name}</strong>? Esta acción es irreversible.`}
+          message={`¿Estás seguro que deseas eliminar "${selectedRepo?.name}"? Esta acción es irreversible.`}
           buttons={[
             { text: 'Cancelar', role: 'cancel' },
             { text: 'Eliminar', handler: () => confirmDelete() }

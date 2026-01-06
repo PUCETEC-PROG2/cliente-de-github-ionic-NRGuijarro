@@ -2,8 +2,9 @@ import { IonButton, IonContent, IonHeader, IonPage, IonTextarea, IonTitle, IonTo
 import { IonInput } from '@ionic/react';
 import './Tab2.css';
 import { useState } from 'react';
-import { createRepo, getUserRepos } from '../services/github';
+import { createRepo } from '../services/github';
 import { useHistory } from 'react-router-dom';
+import { useIonViewWillEnter } from '@ionic/react';
 
 const Tab2: React.FC = () => {
   const [name, setName] = useState('');
@@ -12,6 +13,12 @@ const Tab2: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const history = useHistory();
+
+  // Limpiar mensajes al entrar a la vista
+  useIonViewWillEnter(() => {
+    setError(null);
+    setSuccess(null);
+  });
 
   const handleSubmit = async () => {
     setError(null);
@@ -27,20 +34,17 @@ const Tab2: React.FC = () => {
       setSuccess('Repositorio creado exitosamente');
       setName('');
       setDescription('');
-      // Emit event with created repo to notify repo list to refresh / prepend
-      try { window.dispatchEvent(new CustomEvent('repoCreated', { detail: created })); } catch (e) { /* noop */ }
-      // Also fetch fresh list and send full list for reliability
+      // Emitir evento para notificar a la lista de repos que se refresque
       try {
-        const list = await getUserRepos();
-        try { window.dispatchEvent(new CustomEvent('reposUpdated', { detail: list })); } catch (e) { }
-        try { sessionStorage.setItem('reposUpdated', '1'); } catch (e) { }
+        window.dispatchEvent(new CustomEvent('repoCreated', { detail: created }));
       } catch (e) {
-        // ignore fetch list error, UI will still get created item
+        console.error('Error dispatching event:', e);
       }
       // Navegar de regreso a la lista de repos después de un pequeño delay
-      setTimeout(() => history.push('/tab1'), 400);
-    } catch (e: any) {
-      setError(e?.response?.data?.message || e?.message || 'Error al crear repositorio');
+      setTimeout(() => history.push('/tab1'), 500);
+    } catch (e: unknown) {
+      const error = e instanceof Error ? e : new Error(String(e));
+      setError(error.message || 'Error al crear repositorio');
     } finally {
       setLoading(false);
     }
@@ -62,7 +66,7 @@ const Tab2: React.FC = () => {
         <div className="form-container">
           <IonInput
             value={name}
-            onIonChange={(e: any) => setName(e.detail.value)}
+            onIonChange={(e) => setName(String(e.detail.value || ''))}
             className="form-field"
             label="Nombre del repositorio"
             labelPlacement="floating"
@@ -71,7 +75,7 @@ const Tab2: React.FC = () => {
           ></IonInput>
           <IonTextarea
             value={description}
-            onIonChange={(e: any) => setDescription(e.detail.value)}
+            onIonChange={(e) => setDescription(String(e.detail.value || ''))}
             className="form-field"
             label="Descripción del repositorio"
             labelPlacement="floating"
