@@ -1,10 +1,11 @@
-import { IonButton, IonContent, IonHeader, IonPage, IonTextarea, IonTitle, IonToolbar } from '@ionic/react';
+import { IonButton, IonContent, IonHeader, IonPage, IonTextarea, IonTitle, IonToolbar, IonRefresher, IonRefresherContent } from '@ionic/react';
 import { IonInput } from '@ionic/react';
 import './Tab2.css';
 import { useState } from 'react';
 import { createRepo } from '../services/github';
 import { useHistory } from 'react-router-dom';
 import { useIonViewWillEnter } from '@ionic/react';
+import { RefresherEventDetail } from '@ionic/react';
 
 const Tab2: React.FC = () => {
   const [name, setName] = useState('');
@@ -19,6 +20,15 @@ const Tab2: React.FC = () => {
     setError(null);
     setSuccess(null);
   });
+
+  const handleRefresh = (event: CustomEvent<RefresherEventDetail>) => {
+    // Limpiar el formulario y mensajes
+    setName('');
+    setDescription('');
+    setError(null);
+    setSuccess(null);
+    event.detail.complete();
+  };
 
   const handleSubmit = async () => {
     setError(null);
@@ -58,6 +68,9 @@ const Tab2: React.FC = () => {
         </IonToolbar>
       </IonHeader>
       <IonContent fullscreen>
+        <IonRefresher slot="fixed" onIonRefresh={handleRefresh}>
+          <IonRefresherContent></IonRefresherContent>
+        </IonRefresher>
         <IonHeader collapse="condense">
           <IonToolbar>
             <IonTitle size="large">Formulario de repositorio</IonTitle>

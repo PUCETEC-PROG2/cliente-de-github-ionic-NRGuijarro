@@ -1,9 +1,8 @@
-import { IonContent, IonHeader, IonPage, IonTitle, IonToolbar, isPlatform, useIonViewWillEnter } from '@ionic/react';
+import { IonContent, IonHeader, IonPage, IonTitle, IonToolbar, useIonViewWillEnter } from '@ionic/react';
 import { IonList } from '@ionic/react';
 import './Tab1.css';
 import { useEffect, useState, useRef } from 'react';
 import { getUserRepos, updateRepo, deleteRepo } from '../services/github';
-import { useHistory } from 'react-router-dom';
 import {
   IonButton,
   IonItem,
@@ -33,8 +32,6 @@ const Tab1: React.FC = () => {
   const [editOpen, setEditOpen] = useState(false);
   const [selectedRepo, setSelectedRepo] = useState<Repo | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
-  const touchStartX = useRef<number | null>(null);
-  const history = useHistory();
   const needsRefresh = useRef(false);
 
   // Refrescar automáticamente cuando se regresa a esta pestaña
@@ -178,27 +175,7 @@ const Tab1: React.FC = () => {
           </IonButtons>
         </IonToolbar>
       </IonHeader>
-      <IonContent
-        fullscreen
-        onTouchStart={(e) => {
-          if (!isPlatform('android')) return;
-          const touchEvent = e as React.TouchEvent<HTMLIonContentElement>;
-          touchStartX.current = touchEvent.touches && touchEvent.touches[0] ? touchEvent.touches[0].clientX : null;
-        }}
-        onTouchEnd={(e) => {
-          if (!isPlatform('android')) return;
-          const touchEvent = e as React.TouchEvent<HTMLIonContentElement>;
-          if (touchStartX.current === null) return;
-          const endX = touchEvent.changedTouches && touchEvent.changedTouches[0] ? touchEvent.changedTouches[0].clientX : null;
-          if (endX === null) return;
-          const delta = endX - touchStartX.current;
-          // deslizar a la izquierda -> ir a crear repo
-          if (delta < -50) {
-            history.push('/tab2');
-          }
-          touchStartX.current = null;
-        }}
-      >
+      <IonContent fullscreen>
         <IonHeader collapse="condense">
           <IonToolbar>
             <IonTitle size="large">Repositorios</IonTitle>

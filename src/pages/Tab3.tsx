@@ -1,29 +1,44 @@
-import { IonContent, IonHeader, IonPage, IonTitle, IonToolbar } from '@ionic/react';
+import { IonContent, IonHeader, IonPage, IonTitle, IonToolbar, IonRefresher, IonRefresherContent } from '@ionic/react';
 import { IonCard, IonCardContent, IonCardHeader, IonCardSubtitle, IonCardTitle } from '@ionic/react';
 import './Tab3.css';
 import { useEffect, useState } from 'react';
 import { getUser } from '../services/github';
+import { RefresherEventDetail } from '@ionic/react';
+
+interface GitHubUser {
+  login: string;
+  name: string;
+  avatar_url: string;
+  bio: string | null;
+}
 
 const Tab3: React.FC = () => {
-  const [user, setUser] = useState<any | null>(null);
+  const [user, setUser] = useState<GitHubUser | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const fetchUser = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await getUser();
+      setUser(data);
+    } catch (e: unknown) {
+      const error = e instanceof Error ? e : new Error(String(e));
+      setError(error.message || 'Error al obtener información del usuario');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchUser = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const data = await getUser();
-        setUser(data);
-      } catch (e: any) {
-        setError(e?.message || 'Error al obtener información del usuario');
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchUser();
   }, []);
+
+  const handleRefresh = async (event: CustomEvent<RefresherEventDetail>) => {
+    await fetchUser();
+    event.detail.complete();
+  };
 
   return (
     <IonPage>
@@ -33,6 +48,9 @@ const Tab3: React.FC = () => {
         </IonToolbar>
       </IonHeader>
       <IonContent fullscreen>
+        <IonRefresher slot="fixed" onIonRefresh={handleRefresh}>
+          <IonRefresherContent></IonRefresherContent>
+        </IonRefresher>
         <IonHeader collapse="condense">
           <IonToolbar>
             <IonTitle size="large">Usuario</IonTitle>
