@@ -12,6 +12,9 @@ import {
   IonToast,
   IonButtons,
   IonIcon,
+  IonItemSliding,
+  IonItemOptions,
+  IonItemOption,
 } from '@ionic/react';
 import { refresh as refreshIcon } from 'ionicons/icons';
 
@@ -188,20 +191,29 @@ const Tab1: React.FC = () => {
             <div className="empty">No hay repositorios.</div>
           )}
           {repos.map((r) => (
-            <IonItem key={r.id}>
-              {r.owner?.avatar_url ? (
-                <IonThumbnail slot="start">
-                  <img alt="Avatar" src={r.owner.avatar_url} />
-                </IonThumbnail>
-              ) : (
-                <IonThumbnail slot="start">
-                  <img alt="Avatar" src={"https://ionicframework.com/docs/img/demos/thumbnail.svg"} />
-                </IonThumbnail>
-              )}
-              <IonLabel>{r.name}</IonLabel>
-              <IonButton slot="end" color="medium" onClick={() => onRequestEdit(r)}>Editar</IonButton>
-              <IonButton slot="end" color="danger" onClick={() => onRequestDelete(r)}>Eliminar</IonButton>
-            </IonItem>
+            <IonItemSliding key={r.id}>
+              <IonItem>
+                {r.owner?.avatar_url ? (
+                  <IonThumbnail slot="start">
+                    <img alt="Avatar" src={r.owner.avatar_url} />
+                  </IonThumbnail>
+                ) : (
+                  <IonThumbnail slot="start">
+                    <img alt="Avatar" src={"https://ionicframework.com/docs/img/demos/thumbnail.svg"} />
+                  </IonThumbnail>
+                )}
+                <IonLabel>{r.name}</IonLabel>
+              </IonItem>
+
+              <IonItemOptions side="end">
+                <IonItemOption color="medium" onClick={() => onRequestEdit(r)}>
+                  Editar
+                </IonItemOption>
+                <IonItemOption color="danger" onClick={() => onRequestDelete(r)}>
+                  Eliminar
+                </IonItemOption>
+              </IonItemOptions>
+            </IonItemSliding>
           ))}
         </IonList>
 
